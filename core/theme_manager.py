@@ -1,6 +1,8 @@
 import os
 from PySide6.QtGui import QIcon
 
+from core.branding import RESOURCES_DIR
+
 class ThemeManager:
     def __init__(self, app, window):
         self.app = app
@@ -33,11 +35,9 @@ class ThemeManager:
         self.window.update_toggle_icon()
 
     def get_icon_path(self, icon_name):
-        base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "resources"))
-
         if not icon_name.endswith(".ico") and not icon_name.endswith(".png"):
             icon_name += ".png"  # default to .png if no extension provided
 
-        return os.path.join(base_path, icon_name)
+        return os.path.join(RESOURCES_DIR, icon_name)
 
 

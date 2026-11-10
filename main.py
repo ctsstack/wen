@@ -1,28 +1,54 @@
 import sys
 import json
+import os
+import random
+sys.path.insert(0, os.path.dirname(__file__))
+
+from core.get_data_path import get_data_path
+from core.branding import get_inter_font, get_theme_stylesheet
+from core.branding import get_icon, get_icon_path, RESOURCES_DIR
+from core.theme_manager import ThemeManager
+from core.theme_utils import highlight_buttons, clear_highlights
+# type: ignore
 from PySide6.QtWidgets import QApplication, QWidget, QPushButton, QToolTip
 from PySide6.QtWidgets import QGridLayout, QLabel, QSpacerItem, QSizePolicy, QHBoxLayout
 from PySide6.QtCore import Qt, QRect, QTimer, QSize
-from PySide6.QtGui import QIcon
-from wen.core.utils.get_data_path import get_data_path
-from wen.core.branding import get_inter_font, get_theme_stylesheet
-from wen.core.branding import get_icon
-from wen.core.theme_manager import ThemeManager
-from wen.core.theme_utils import highlight_buttons, clear_highlights
+from PySide6.QtGui import QIcon, QFont, QColor, QPalette
 
 class WENPalette(QWidget):
+
+    def set_branding_icon(self, icon_name="WEN_square.ico"):
+        if self.theme_mgr:
+            icon_path = self.theme_mgr.get_icon_path(icon_name)
+            print(f"[DEBUG] Setting branding icon: {icon_path}")
+
     def __init__(self, json_path, theme_mgr=None):
         super().__init__()
 
         print("[WEN INIT] Starting init sequence...")
 
+# Apply WEN branding
+        palette = QPalette()
+        palette.setColor(QPalette.Window, QColor("#1C1F26"))  # vapor_slate
+        palette.setColor(QPalette.Button, QColor("#C2C7CC"))  # window_silver
+        palette.setColor(QPalette.ButtonText, Qt.black)
+        palette.setColor(QPalette.WindowText, QColor("#00D1FF"))  # accent_cyan
+        palette.setColor(QPalette.Text, Qt.white)
+        QApplication.instance().setPalette(palette)
+        QApplication.instance().setFont(QFont("Inter", 10))
+
         self.setWindowFlags(
-            Qt.Window |
-            Qt.WindowTitleHint |
-            Qt.WindowSystemMenuHint |
-            Qt.WindowMinMaxButtonsHint
+            Qt.Window | Qt.WindowTitleHint | Qt.WindowSystemMenuHint | Qt.WindowMinMaxButtonsHint
         )
         self.setWindowTitle("WEN")
+        title_font = QFont("Poppins", 20, QFont.Bold)
+        self.setStyleSheet("QWidget { color: #00D1FF; }")  # Apply window text color
+#        self.setWindowIcon(QIcon(get_data_path("gimp.ico")))  # Stubbed WEN logo path
+
+        #        icon_path = RESOURCES / "moon.ico"  # Use paths module
+
+
+
         main_layout = QGridLayout()
         self.setLayout(main_layout)
         self.setContentsMargins(0, 0, 0, 0)  # Window margins
@@ -30,6 +56,7 @@ class WENPalette(QWidget):
         main_layout.setSpacing(0)  # No default spacing, handled by nested layouts
         self.buttons = []
         self.theme_mgr = theme_mgr
+        self.current_theme = "dark"  # or "light", depending on default
 
         with open(json_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
@@ -44,7 +71,7 @@ class WENPalette(QWidget):
         # Create grid layout (rows 1-4) with 10px spacing
         grid_layout = QGridLayout()
         grid_layout.setContentsMargins(12,0,0,0)
-        grid_layout.setSpacing(10)  # 12 pixels between grid buttons
+        grid_layout.setSpacing(12)  # 12 pixels between grid buttons
         main_layout.addLayout(grid_layout, 1, 0, 4, 4)  # 4x4 grid area
 
         # Create and position all widgets based on JSON data
@@ -59,30 +86,30 @@ class WENPalette(QWidget):
             row_layout = QHBoxLayout()
             row_layout.setSpacing(10)  # 10px horizontal spacing between grid buttons
             # Add 12px spacer to push buttons right
-            spacer = QSpacerItem(2, 40, QSizePolicy.Fixed, QSizePolicy.Expanding)
+            spacer = QSpacerItem(10, 40, QSizePolicy.Fixed, QSizePolicy.Expanding)
             row_layout.addItem(spacer)
             row_layouts.append(row_layout)
             grid_layout.addLayout(row_layout, i + 1, 0, 1, 4)  # Grid rows start at 1
+            row5_layout = QHBoxLayout()
+            row5_layout.setSpacing(0)  # No default spacing, controlled by spacers
+            main_layout.addLayout(row5_layout, 5, 0, 1, 6)  # Span all 6 columns in Row 5
 
         for cell in data["root"]["cells"]:
             w = cell.get("width", 40)
             h = cell.get("height", 40)
             label = cell.get("label", "*")
             tooltip = cell.get("tooltip", "")
-            icon_path = cell.get("icon", "default.ico")  # Default icon if none provided
+            icon_path = cell.get("icon", "WEN_square.ico")  # Default icon if none provided
             slot_id = cell.get("slot_id", "")
             style_class = cell.get("style_class", "unassigned")
             cell_type = cell.get("type", "grid")
-
 #            print(f"Processing cell: slot_id={slot_id}, type={cell_type}")
-
             # Create widget
             if slot_id == "Current_Layout":
                 btn = QLabel(label, self)  # Use QLabel for read-only text
                 btn.setFixedSize(130, 20)  # Set desired size
                 btn.setText(label.replace('_', ' ').split()[-1] if label else "(no file selected)")  # Set text from label or default
                 btn.setStyleSheet("border: 1px solid gray;")  # Add border
-
             else:
                 btn = QPushButton(self)
             btn.setProperty("slot_id", slot_id)
@@ -110,24 +137,38 @@ class WENPalette(QWidget):
                 btn.setIconSize(QSize(20, 20))  # Adjust icon size to fit
                 btn.setText(f"{label.replace('_', ' ').split()[-1]}")  # Temporary label (e.g., "+")
             elif slot_id == "Theme_Toggle":
-                btn.setFixedSize(30, 30)  # 30x20px
-                btn.setIcon(QIcon(get_icon(icon_path)))  # Keep icon setup
-                btn.setIconSize(QSize(30, 30))  # Adjust icon size
-                btn.setText(f"{label.replace('_', ' ').split()[-1]}")  # Temporary label (e.g., "L/D")
-            else:
-                btn.setText(label)  # Keep text for other controls if no icon
+                btn.setFixedSize(30, 30)
+
+                print(f"[DEBUG] Theme_Toggle searching at: {icon_path}")
+                icon = QIcon(icon_path)
+
+
+
+                btn.setIcon(icon)
+                if not icon.isNull():
+                    print("[DEBUG] Icon loaded")
+                else:
+                    print("[DEBUG] Icon failed to load")
+                btn.setIconSize(QSize(28, 28))
+                btn.setText("")
+                btn.setStyleSheet("background-color: #1C1F26; qproperty-iconSize: 28px;")
+                btn.setIcon(icon)  # Reapply to ensure default
+                current_icon = btn.icon()
+                print(f"[DEBUG] Post-setup icon: {current_icon.cacheKey() if not current_icon.isNull() else 'null'}")
+                btn.clicked.connect(self.update_toggle_icon)
+                print(f"[DEBUG] Theme_Toggle connected for {slot_id}")
 
             # Position in appropriate layout
             if cell_type == "grid" and slot_id.startswith("Button_"):
                 button_num = int(slot_id.replace("Button_", ""))
                 row = (button_num - 1) // 4
                 col = (button_num - 1) % 4
-#                print(f"Adding button {slot_id} at row {row + 1}, col {col}")  # Adjust row for grid (1-4)
                 row_layouts[row].addWidget(btn)  # Add to the corresponding row's HBox
-            else:  # Control widgets (Row 0)
+                if col <3:
+                    spacer = QSpacerItem(6, 40, QSizePolicy.Fixed, QSizePolicy.Minimum)  # 12px horizontal spacer
+                    row_layouts[row].addItem(spacer)
+            else:  # Control widgets (Row 0 and Row 5)
                 if slot_id == "Load_Layout":
-#                    spacer = QSpacerItem(2, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
-#                    row0_layout.addItem(spacer)
                     row0_layout.addWidget(btn)
                 elif slot_id == "Save_Layout":
                     # Add 4px spacer between Load and Save
@@ -135,8 +176,7 @@ class WENPalette(QWidget):
                     row0_layout.addItem(spacer)
                     row0_layout.addWidget(btn)
                 elif slot_id == "Add_window_assignment":
-                    # Add 4px spacer between Save and +
-                    spacer = QSpacerItem(10, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
+                    spacer = QSpacerItem(4, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
 #                    print(f"Processing widget : slot_id={slot_id}")
                     row0_layout.addItem(spacer)
                     row0_layout.addWidget(btn)
@@ -152,29 +192,27 @@ class WENPalette(QWidget):
                     row0_layout.addItem(spacer)
                     row0_layout.addWidget(btn)
                 elif slot_id == "Current_Layout":
-#                    spacer = QSpacerItem(10, 30, QSizePolicy.Fixed, QSizePolicy.Minimum)  # 10px wide spacer, 30px height to match
-#                    main_layout.addItem(spacer, 5, 0, 1, 1)  # Add spacer at column 0, Row 5
-#                    btn.setFixedWidth(150)  # Ensure width is set
-                    main_layout.addWidget(btn, 5, 0, 1, 2)  # Span 3 columns in Row 5
+                    btn.setFixedWidth(150)  # Keep current width
+                    row5_layout.addWidget(btn)  # Add to Row 5 layout
+                    spacer_right = QSpacerItem(25, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)  # Spacer to push Theme_Toggle
+                    row5_layout.addItem(spacer_right)
                 elif slot_id == "Theme_Toggle":
-                    spacer = QSpacerItem(30, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)  # 10px wide spacer
-                    main_layout.addItem(spacer, 5, 3, 1, 1)  # Add spacer in column 4
-                    main_layout.addWidget(btn, 5, 3, 1, 1)  # Move Theme_Toggle to column 5
-#                    main_layout.update()
-            # Apply specific properties
+                    spacer_left = QSpacerItem(20, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)  # Optional left spacer
+                    row5_layout.addItem(spacer_left)
+                    row5_layout.addWidget(btn)  # Add to Row 5 layout
+#                   Apply specific properties
             if slot_id == "Border":
                 btn.setEnabled(False)
                 btn.setFocusPolicy(Qt.NoFocus)
             elif slot_id.startswith("Button_"):
                 btn.setFocusPolicy(Qt.NoFocus)
-            elif slot_id == "Theme_Toggle" and self.theme_mgr:
+            elif slot_id == "Theme_Toggle" and self.theme_mgr:     #    < -----
                 btn.clicked.connect(self.theme_mgr.toggle_theme)
             elif slot_id == "Add_window_assignment":
                 btn.clicked.connect(self.toggle_window_assignment_mode)
             elif slot_id == "Remove_window_assignment":
                 btn.clicked.connect(self.highlight_remove_assignment)
-
-            # Tooltip handling
+#               Tooltip handling
             if tooltip:
                 def make_tooltip_handler(button, text):
                     def show_tooltip():
@@ -235,7 +273,6 @@ class WENPalette(QWidget):
         print("[WEN INIT] Layout setup complete.")
 #
 #
-#
     def toggle_window_assignment_mode(self):
         print(f"[+] Add window assignment mode toggled. Active? {self.highlight_active}")
 
@@ -244,32 +281,39 @@ class WENPalette(QWidget):
         else:
             self._activate_highlight()
 
+
+
     def assign_window(self, btn):
         # Stub for now: simulate assigning a dummy app / ico
         print("f self.highlight_active")
         if not self.highlight_active:
-            print("Use the '+' button to associate a window withthis button")
+            print("Use the '+' button to associate a window with this button")
             return
 
         print(f">> Assigning window to: {btn.slot_id}")
 
-        # Simulate the assigned window/app metadata
-        assigned_app = {
+        # Simulate the assigned window/app metadata  The CWT DB will be the ultimate source for this info
+        used_icons = [v.get("icon", "") for v in self.layout_data.values() if isinstance(v, dict)]
+        random_icon = self.get_unused_icon(used_icons)
+
+        icon_path = get_icon_path(random_icon or "WEN_square.ico")
+
+        assigned_window = {
             "name": "ExampleApp",
             "exe_path": "C:/Path/To/ExampleApp.exe",
-            "icon_path": "Wen/resources/gimp.ico",   # < --- Dev splint the CWT db is the ultimate source
+            "icon": random_icon,
             "tooltip": "ExampleApp"
-        }
-
+    }
         # Apply metadata to the button
         btn.setProperty("class", "assigned")
-        btn.setToolTip(assigned_app["tooltip"])
+        btn.setToolTip(assigned_window["tooltip"])
         btn.setText("")  # clear numeric label
-        btn.setIcon(QIcon(assigned_app["icon_path"]))
+#       btn.setIcon(QIcon(assigned_window["icon_path"]))
+        btn.setIcon(QIcon(icon_path))
         btn.setIconSize(btn.size())
 
         # Optionally store the metadata
-        self.layout_data[btn.slot_id] = assigned_app
+        self.layout_data[btn.slot_id] = assigned_window
 
         # Refresh style
         btn.style().unpolish(btn)
@@ -326,7 +370,6 @@ class WENPalette(QWidget):
         [b for b in self.buttons if b.slot_id.startswith("Button_")],
         lambda b: self.layout_data.get(b.slot_id, {}).get("style_class", "primary")
     )
-
 # Define the method inside WENPalette
     def _toggle_pulse(self):
         for btn in self.buttons:
@@ -337,15 +380,41 @@ class WENPalette(QWidget):
                 btn.style().polish(btn)
             self.pulse_state = not self.pulse_state
 
+    def toggle_theme_mode(self):
+        self.current_theme = self.toggle_theme(self.current_theme, self)
+        icon_path = self.get_icon_path("moon")
+        self.theme_toggle_btn.setIcon(QIcon(icon_path))
+
+    def update_toggle_icon(self):
+        if not self.theme_mgr:
+            return
+        icon_name = "sun.ico" if self.current_theme == "light" else "moon.ico"
+        icon_path = self.theme_mgr.get_icon_path(icon_name)
+        for btn in self.buttons:
+            if btn.slot_id == "Theme_Toggle":
+                btn.setIcon(QIcon(icon_path))
+                break
+
+    def get_unused_icon(self, existing_icons, icon_folder=RESOURCES_DIR):
+        all_icons = [f for f in os.listdir(icon_folder) if f.endswith(".ico")]
+        unused = list(set(all_icons) - set(existing_icons))
+        if not unused:
+            print("[INFO] All icons are used.")
+            return None
+        return random.choice(unused)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
 
+
     window = WENPalette(get_data_path("WEN_palette_runtime_layout_default.json"))
     theme_mgr = ThemeManager(app, window)
     window.theme_mgr = theme_mgr
-    theme_mgr.load_theme("dark")
+    window.set_branding_icon()
+    theme_mgr = ThemeManager(app, window)
+    window.theme_mgr = theme_mgr
+    theme_mgr.load_theme("dark_theme_wen")
 
     window.show()
-    QTimer.singleShot(10000, app.quit)
+    QTimer.singleShot(60000, app.quit)
     sys.exit(app.exec())
