@@ -1,3 +1,5 @@
+import os
+
 from PySide6.QtGui import QFont, QIcon
 
 def get_inter_font(size=10, bold=False):
@@ -24,10 +26,13 @@ def get_theme_stylesheet():
     }
     """
 
+# Single source of truth for where icons live.
+RESOURCES_DIR = os.path.normpath(
+    os.path.join(os.path.dirname(__file__), "..", "resources_Local")
+)
+
 def get_icon_path(name: str) -> str:
-    import os
-    base_path = os.path.join(os.path.dirname(__file__), "..", "resources")
-    return os.path.normpath(os.path.join(base_path, name))
+    return os.path.join(RESOURCES_DIR, name)
 
 def get_icon(name: str) -> QIcon:
     return QIcon(get_icon_path(name))

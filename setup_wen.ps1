@@ -17,4 +17,4 @@ if (-not (Test-Path ".venv")) {
     .\.venv\Scripts\Activate.ps1
 }
 
-python -m wen.main
+python main.py
