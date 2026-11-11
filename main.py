@@ -1,19 +1,23 @@
 import sys
 import json
 import os
-import random
+from pathlib import Path
 sys.path.insert(0, os.path.dirname(__file__))
 
+from core import window_manager
 from core.get_data_path import get_data_path
 from core.branding import get_inter_font, get_theme_stylesheet
-from core.branding import get_icon, get_icon_path, RESOURCES_DIR
+from core.branding import get_icon
 from core.theme_manager import ThemeManager
-from core.theme_utils import highlight_buttons, clear_highlights
 # type: ignore
 from PySide6.QtWidgets import QApplication, QWidget, QPushButton, QToolTip
 from PySide6.QtWidgets import QGridLayout, QLabel, QSpacerItem, QSizePolicy, QHBoxLayout
-from PySide6.QtCore import Qt, QRect, QTimer, QSize
+from PySide6.QtWidgets import QMenu, QFileDialog, QFileIconProvider, QMessageBox
+from PySide6.QtCore import Qt, QRect, QTimer, QSize, QFileInfo, QSettings
 from PySide6.QtGui import QIcon, QFont, QColor, QPalette
+
+DEFAULT_LAYOUT = "WEN_Palette_runtime_layout_default.json"
+MODE_TIMEOUT_MS = 15000  # add/remove mode cancels itself after this long
 
 class WENPalette(QWidget):
 
@@ -62,6 +66,11 @@ class WENPalette(QWidget):
             data = json.load(f)
 
         self.layout_data = data
+        self.layout_path = json_path
+        self.assignments = {}  # slot_id -> {"title", "exe_path", "class_name", "hwnd"}
+        self.default_icons = {}  # slot_id -> icon file shown while unassigned
+        self.current_layout_label = None
+        self._icon_provider = QFileIconProvider()
 
         # Create control layout (row 0) with 2px spacing
         control_layout = QGridLayout()
@@ -108,8 +117,8 @@ class WENPalette(QWidget):
             if slot_id == "Current_Layout":
                 btn = QLabel(label, self)  # Use QLabel for read-only text
                 btn.setFixedSize(130, 20)  # Set desired size
-                btn.setText(label.replace('_', ' ').split()[-1] if label else "(no file selected)")  # Set text from label or default
                 btn.setStyleSheet("border: 1px solid gray;")  # Add border
+                self.current_layout_label = btn  # text is set by _set_current_layout
             else:
                 btn = QPushButton(self)
             btn.setProperty("slot_id", slot_id)
@@ -123,6 +132,7 @@ class WENPalette(QWidget):
             # Use the 'label' from the layout file for labeling
             if cell_type == "grid" and slot_id.startswith("Button_"):
                 btn.setFixedSize(40, 40)  # Grid buttons at 40x40
+                self.default_icons[slot_id] = icon_path
                 btn.setIcon(QIcon(get_icon(icon_path)))  # Keep icon setup
                 btn.setIconSize(QSize(20, 20))  # Smaller icon
                 btn.setText("")  # No label for grid buttons
@@ -211,21 +221,20 @@ class WENPalette(QWidget):
             elif slot_id == "Add_window_assignment":
                 btn.clicked.connect(self.toggle_window_assignment_mode)
             elif slot_id == "Remove_window_assignment":
-                btn.clicked.connect(self.highlight_remove_assignment)
-#               Tooltip handling
+                btn.clicked.connect(self.toggle_remove_assignment_mode)
+            elif slot_id == "Load_Layout":
+                btn.clicked.connect(self.load_layout)
+            elif slot_id == "Save_Layout":
+                btn.clicked.connect(self.save_layout)
             if tooltip:
-                def make_tooltip_handler(button, text):
-                    def show_tooltip():
-                        QToolTip.showText(button.mapToGlobal(button.rect().center()), text)
-                    return show_tooltip
-                btn.enterEvent = lambda event, f=make_tooltip_handler(btn, tooltip): QTimer.singleShot(800, f)
+                btn.setToolTip(tooltip)
 
             self.buttons.append(btn)
 
-        # Connect unassigned buttons
-        for btn in self.buttons:
-            if btn.property("class") == "unassigned":
-                btn.clicked.connect(lambda _, b=btn: self.assign_window(b))
+        # Every grid button shares one handler; what a click does depends on
+        # the current mode and on whether the slot has a window assigned.
+        for btn in self._grid_buttons():
+            btn.clicked.connect(lambda _, b=btn: self._on_grid_button(b))
 
         # Set layout constraints with 10px vertical spacing
         main_layout.setVerticalSpacing(10)  # 10px between rows
@@ -253,133 +262,234 @@ class WENPalette(QWidget):
 
 #  This is the boundary
 
-        # Initialize add_mode and timers
-        self.add_mode = False
-        self.add_timer = QTimer()
-        self.add_timer.setSingleShot(True)
-        self.add_timer.timeout.connect(lambda: clear_highlights(self.buttons))
+        # "add" (after '+') and "remove" (after '-') are mutually exclusive
+        # modes that end on the next grid click or after MODE_TIMEOUT_MS.
+        self.mode = None
+        self.mode_timer = QTimer(self)
+        self.mode_timer.setSingleShot(True)
+        self.mode_timer.timeout.connect(self._end_mode)
 
-        self.highlight_timer = QTimer()
-        self.highlight_timer.setSingleShot(True)
-        self.highlight_active = False
-        self.highlight_timer.timeout.connect(self.cancel_highlight)
+        self._apply_assignments(data)
+        self._set_current_layout(json_path, remember=False)
 
-        self.pulse_timer = QTimer(self)
-        self.pulse_timer.setInterval(500)
-        self.pulse_timer.timeout.connect(self._toggle_pulse)
-        self.pulse_state = False
-
-#        print(f"Layout contains {main_layout.count()} widgets")
         print("[WEN INIT] Layout setup complete.")
-#
-#
-    def toggle_window_assignment_mode(self):
-        print(f"[+] Add window assignment mode toggled. Active? {self.highlight_active}")
 
-        if self.highlight_active:
-            self._deactivate_highlight()
-        else:
-            self._activate_highlight()
+    # ------------------------------------------------------------------
+    # Small helpers
+    # ------------------------------------------------------------------
+    def _grid_buttons(self):
+        return [b for b in self.buttons if b.slot_id.startswith("Button_")]
 
+    def _button(self, slot_id):
+        return next((b for b in self.buttons if b.slot_id == slot_id), None)
 
-
-    def assign_window(self, btn):
-        # Stub for now: simulate assigning a dummy app / ico
-        print("f self.highlight_active")
-        if not self.highlight_active:
-            print("Use the '+' button to associate a window with this button")
-            return
-
-        print(f">> Assigning window to: {btn.slot_id}")
-
-        # Simulate the assigned window/app metadata  The CWT DB will be the ultimate source for this info
-        used_icons = [v.get("icon", "") for v in self.layout_data.values() if isinstance(v, dict)]
-        random_icon = self.get_unused_icon(used_icons)
-
-        icon_path = get_icon_path(random_icon or "WEN_square.ico")
-
-        assigned_window = {
-            "name": "ExampleApp",
-            "exe_path": "C:/Path/To/ExampleApp.exe",
-            "icon": random_icon,
-            "tooltip": "ExampleApp"
-    }
-        # Apply metadata to the button
-        btn.setProperty("class", "assigned")
-        btn.setToolTip(assigned_window["tooltip"])
-        btn.setText("")  # clear numeric label
-#       btn.setIcon(QIcon(assigned_window["icon_path"]))
-        btn.setIcon(QIcon(icon_path))
-        btn.setIconSize(btn.size())
-
-        # Optionally store the metadata
-        self.layout_data[btn.slot_id] = assigned_window
-
-        # Refresh style
+    def _set_class(self, btn, cls):
+        """Change the QSS class of a button and force a restyle."""
+        btn.setProperty("class", cls)
         btn.style().unpolish(btn)
         btn.style().polish(btn)
+        btn.update()
 
-        # Exit window assignment mode
-        self._deactivate_highlight()
+    def _hint(self, btn, text):
+        if btn is not None:
+            QToolTip.showText(btn.mapToGlobal(btn.rect().center()), text, btn)
 
-    def _activate_highlight(self):
-#        print(" ENTERING activate_highlight")
-        self.highlight_active = True
-        self._apply_class_to_unassigned("unassigned highlight")  # <== changed
-        self.highlight_timer.start(15000)
-#        self.pulse_timer.start(500)
-#        print(f">> highlight_active SET TO: {self.highlight_active}")
+    def _exe_icon(self, exe_path):
+        """The program's own icon, or the WEN logo if it can't be read."""
+        if exe_path and os.path.isfile(exe_path):
+            icon = self._icon_provider.icon(QFileInfo(exe_path))
+            if not icon.isNull():
+                return icon
+        return get_icon("WEN_square.ico")
 
-    def _deactivate_highlight(self):
-#        print(" ENTERING deactivate_highlight")
-        self.highlight_active = False
-        self.highlight_timer.stop()
-        self._apply_class_to_unassigned("unassigned")
-        self.pulse_timer.stop()
-#        print(f">> highlight_active SET TO: {self.highlight_active}")
+    # ------------------------------------------------------------------
+    # Add / remove modes
+    # ------------------------------------------------------------------
+    def toggle_window_assignment_mode(self):
+        self._toggle_mode("add")
 
-    def _apply_class_to_unassigned(self, cls):
-        for btn in self.buttons:
-            if btn.property("class") in ["unassigned", "unassigned highlight"]:
-                print(f"Updating {btn.slot_id} → {cls}")
-                btn.setProperty("class", cls)
-                btn.style().unpolish(btn)
-                btn.style().polish(btn)
-                btn.update()
+    def toggle_remove_assignment_mode(self):
+        self._toggle_mode("remove")
 
-    def cancel_highlight(self):
-        for btn in self.buttons:
-            if btn.property("class") == "unassigned highlight":
-                btn.setProperty("class", "unassigned")
-                btn.style().unpolish(btn)
-                btn.style().polish(btn)
-        self.highlight_timer.stop()
-        self.highlight_active = False
-        self.pulse_timer.stop()
+    def _toggle_mode(self, mode):
+        previous = self.mode
+        self._end_mode()
+        if previous != mode:
+            self._begin_mode(mode)
 
-    def highlight_remove_assignment(self):
-        """Highlight assigned buttons after '-' is clicked."""
-        highlight_buttons(
-        [b for b in self.buttons if b.slot_id.startswith("Button_")],
-        lambda b: b.property("class") != "unassigned"
-    )
+    def _begin_mode(self, mode):
+        removing = mode == "remove"
+        targets = [b for b in self._grid_buttons()
+                   if (b.slot_id in self.assignments) == removing]
+        if not targets:
+            if removing:
+                self._hint(self._button("Remove_window_assignment"), "No buttons are assigned yet")
+            else:
+                self._hint(self._button("Add_window_assignment"), "Every button is already assigned")
+            return
+        self.mode = mode
+        for btn in targets:
+            self._set_class(btn, "assigned highlight" if removing else "unassigned highlight")
+        self.mode_timer.start(MODE_TIMEOUT_MS)
 
-    def clear_all_highlights(self):
-        """Reset buttons to original style_class from layout data."""
-        clear_highlights(
-        [b for b in self.buttons if b.slot_id.startswith("Button_")],
-        lambda b: self.layout_data.get(b.slot_id, {}).get("style_class", "primary")
-    )
-# Define the method inside WENPalette
-    def _toggle_pulse(self):
-        for btn in self.buttons:
-            if btn.property("class") == "unassigned highlight":
-                style = "unassigned highlight pulse" if self.pulse_state else "unassigned highlight"
-                btn.setProperty("class", style)
-                btn.style().unpolish(btn)
-                btn.style().polish(btn)
-            self.pulse_state = not self.pulse_state
+    def _end_mode(self):
+        self.mode = None
+        self.mode_timer.stop()
+        for btn in self._grid_buttons():
+            self._set_class(btn, "assigned" if btn.slot_id in self.assignments else "unassigned")
 
+    def _on_grid_button(self, btn):
+        assigned = btn.slot_id in self.assignments
+        if self.mode == "add":
+            if assigned:
+                self._hint(btn, "Already assigned - pick a highlighted button")
+                return
+            self._end_mode()
+            self.assign_window(btn)
+        elif self.mode == "remove":
+            if not assigned:
+                self._hint(btn, "Nothing assigned here - pick a highlighted button")
+                return
+            self._end_mode()
+            self._clear_assignment(btn)
+        elif assigned:
+            self.focus_assigned_window(btn)
+        else:
+            self._hint(btn, "Click '+', then this button, to assign a window")
+
+    # ------------------------------------------------------------------
+    # Window assignment and focus
+    # ------------------------------------------------------------------
+    def assign_window(self, btn):
+        """Let the user pick one of the open windows for this button."""
+        windows = [w for w in window_manager.list_windows() if w.exe_path]
+        if not windows:
+            self._hint(btn, "No open windows found")
+            return
+
+        menu = QMenu(self)
+        for w in windows:
+            title = w.title if len(w.title) <= 60 else w.title[:57] + "..."
+            menu.addAction(self._exe_icon(w.exe_path), title).setData(w)
+        chosen = menu.exec(btn.mapToGlobal(btn.rect().bottomLeft()))
+        if chosen is None:
+            return
+
+        w = chosen.data()
+        self._set_assignment(btn, {
+            "title": w.title,
+            "exe_path": w.exe_path,
+            "class_name": w.class_name,
+            "hwnd": w.hwnd,  # this session only; never saved
+        })
+
+    def _set_assignment(self, btn, assignment):
+        self.assignments[btn.slot_id] = assignment
+        btn.setToolTip(assignment["title"])
+        btn.setIcon(self._exe_icon(assignment["exe_path"]))
+        btn.setIconSize(QSize(28, 28))
+        self._set_class(btn, "assigned")
+
+    def _clear_assignment(self, btn):
+        self.assignments.pop(btn.slot_id, None)
+        btn.setToolTip("Unassigned")
+        btn.setIcon(get_icon(self.default_icons.get(btn.slot_id, "Default.ico")))
+        btn.setIconSize(QSize(20, 20))
+        self._set_class(btn, "unassigned")
+
+    def focus_assigned_window(self, btn):
+        assignment = self.assignments[btn.slot_id]
+        name = Path(assignment["exe_path"]).stem
+        hwnd = window_manager.find_window(assignment)
+        if hwnd is None:
+            self._hint(btn, f"{name} is not open")
+            return
+        assignment["hwnd"] = hwnd
+        if not window_manager.focus_window(hwnd):
+            self._hint(btn, f"Could not switch to {name}")
+
+    # ------------------------------------------------------------------
+    # Layout save / load
+    # ------------------------------------------------------------------
+    def _apply_assignments(self, data):
+        """Set every grid button from the 'window' entries in a layout."""
+        cells = {c.get("slot_id"): c for c in data["root"]["cells"] if isinstance(c, dict)}
+        for btn in self._grid_buttons():
+            window = cells.get(btn.slot_id, {}).get("window")
+            if isinstance(window, dict) and window.get("exe_path"):
+                self._set_assignment(btn, {
+                    "title": window.get("title", ""),
+                    "exe_path": window["exe_path"],
+                    "class_name": window.get("class_name", ""),
+                })
+            else:
+                self._clear_assignment(btn)
+
+    def _set_current_layout(self, path, remember=True):
+        self.layout_path = str(path)
+        label = self.current_layout_label
+        if label is not None:
+            stem = Path(path).stem
+            label.setText(label.fontMetrics().elidedText(stem, Qt.ElideMiddle, label.width() - 8))
+            label.setToolTip(str(path))
+        if remember:
+            QSettings("CTS", "WEN").setValue("last_layout", str(path))
+
+    def save_layout(self):
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Save layout", self.layout_path, "WEN layout (*.json)")
+        if not path:
+            return
+        try:
+            self.write_layout(path)
+        except OSError as e:
+            QMessageBox.warning(self, "WEN", f"Could not save layout:\n{e}")
+
+    def write_layout(self, path):
+        for cell in self.layout_data["root"]["cells"]:
+            slot_id = cell.get("slot_id", "")
+            if not slot_id.startswith("Button_"):
+                continue
+            assignment = self.assignments.get(slot_id)
+            if assignment:
+                cell["style_class"] = "assigned"
+                cell["action"] = "focus_window"
+                cell["tooltip"] = assignment["title"]
+                cell["window"] = {k: assignment[k] for k in ("title", "exe_path", "class_name")}
+            else:
+                cell["style_class"] = "unassigned"
+                cell["action"] = "unassigned"
+                cell["tooltip"] = "Unassigned"
+                cell.pop("window", None)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(self.layout_data, f, indent=2)
+        self._set_current_layout(path)
+
+    def load_layout(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Load layout", os.path.dirname(self.layout_path), "WEN layout (*.json)")
+        if path:
+            self.read_layout(path)
+
+    def read_layout(self, path, quiet=False):
+        """Apply the assignments stored in a layout file. Returns success."""
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            if not isinstance(data["root"]["cells"], list):
+                raise ValueError("'root.cells' is not a list")
+        except (OSError, ValueError, KeyError, TypeError) as e:
+            if not quiet:
+                QMessageBox.warning(self, "WEN", f"Could not load layout:\n{e}")
+            return False
+        self._end_mode()
+        self._apply_assignments(data)
+        self._set_current_layout(path)
+        return True
+
+    # ------------------------------------------------------------------
+    # Theme
+    # ------------------------------------------------------------------
     def toggle_theme_mode(self):
         self.current_theme = self.toggle_theme(self.current_theme, self)
         icon_path = self.get_icon_path("moon")
@@ -395,26 +505,20 @@ class WENPalette(QWidget):
                 btn.setIcon(QIcon(icon_path))
                 break
 
-    def get_unused_icon(self, existing_icons, icon_folder=RESOURCES_DIR):
-        all_icons = [f for f in os.listdir(icon_folder) if f.endswith(".ico")]
-        unused = list(set(all_icons) - set(existing_icons))
-        if not unused:
-            print("[INFO] All icons are used.")
-            return None
-        return random.choice(unused)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
 
-
-    window = WENPalette(get_data_path("WEN_palette_runtime_layout_default.json"))
+    window = WENPalette(get_data_path(DEFAULT_LAYOUT))
     theme_mgr = ThemeManager(app, window)
     window.theme_mgr = theme_mgr
     window.set_branding_icon()
-    theme_mgr = ThemeManager(app, window)
-    window.theme_mgr = theme_mgr
     theme_mgr.load_theme("dark_theme_wen")
 
+    # Reopen whichever layout was last saved or loaded.
+    last_layout = QSettings("CTS", "WEN").value("last_layout", "")
+    if last_layout and os.path.isfile(last_layout):
+        window.read_layout(last_layout, quiet=True)
+
     window.show()
-    QTimer.singleShot(60000, app.quit)
     sys.exit(app.exec())
