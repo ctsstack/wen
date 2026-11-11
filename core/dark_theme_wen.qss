@@ -77,6 +77,25 @@ QPushButton[class="unassigned highlight pulse"] {
     background-color: rgba(60, 240, 255, 0.4);
 }
 
+QPushButton[class="assigned"] {
+    border: 1px solid #33ccff;
+    background-color: rgba(30, 60, 70, 0.8);
+    border-radius: 8px;
+    padding: 4px;
+}
+
+QPushButton[class="assigned"]:hover {
+    border: 2px solid #33ccff;
+    background-color: rgba(40, 80, 90, 0.9);
+}
+
+/* Shown after '-' is clicked: these are the buttons that can be cleared. */
+QPushButton[class="assigned highlight"] {
+    border: 2px solid #ff5555;
+    background-color: rgba(255, 85, 85, 0.25);
+    border-radius: 8px;
+}
+
 QLabel {
     color: #ffffffff;
     font-size: 11px;

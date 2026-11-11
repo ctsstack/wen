@@ -1,0 +1,341 @@
+{
+  "root": {
+    "cells": [
+        {
+        "x": 294,
+        "y": 80,
+        "width": 226,
+        "height": 290,
+        "label": " ",
+        "id": "O-ws_NPDMg6LXlj5JLhv-1",
+        "parent": "1",
+        "style": "rounded=.4;whiteSpace=wrap;html=1;arcSize=50;fillColor=#DFFFF1;strokeColor=#00FFFF;",
+        "vertex": "1",
+        "type": "grid",
+        "tooltip": "",
+        "icon": "none",
+        "action": "unassigned",
+        "slot_id": "Border",
+        "style_class": "inert"
+        },
+        {
+        "x": 310,
+        "y": 136,
+        "width": 40,
+        "height": 40,
+        "slot_id": "Button_1",
+        "style_class": "unassigned",
+        "label": "1",
+        "type": "grid",
+        "tooltip": "Unassigned",
+        "icon": "default.ico",
+        "action": "unassigned"
+                },
+        {
+        "x": 360,
+        "y": 136,
+        "width": 40,
+        "height": 40,
+        "slot_id": "Button_2",
+        "style_class": "unassigned",
+        "label": "2",
+        "type": "grid",
+        "tooltip": "Unassigned",
+        "icon": "default.ico",
+        "action": "unassigned"
+
+        },
+        {
+        "x": 411,
+        "y": 136,
+        "width": 40,
+        "height": 40,
+        "slot_id": "Button_3",
+        "style_class": "unassigned",
+        "label": "3",
+        "type": "grid",
+        "tooltip": "Unassigned",
+        "icon": "default.ico",
+        "action": "unassigned"
+        },
+        {
+        "x": 460,
+        "y": 136,
+        "width": 40,
+        "height": 40,
+        "slot_id": "Button_4",
+        "style_class": "unassigned",
+        "label": "4",
+        "type": "grid",
+        "tooltip": "Unassigned",
+        "icon": "default.ico",
+        "action": "unassigned"
+        },
+        {
+        "x": 310,
+        "y": 180,
+        "width": 40,
+        "height": 40,
+        "slot_id": "Button_5",
+        "style_class": "unassigned",
+        "label": "5",
+        "type": "grid",
+        "tooltip": "Unassigned",
+        "icon": "default.ico",
+        "action": "unassigned"
+        },
+        {
+        "x": 360,
+        "y": 180,
+        "width": 40,
+        "height": 40,
+        "slot_id": "Button_6",
+        "style_class": "unassigned",
+        "label": "6",
+        "type": "grid",
+        "tooltip": "Unassigned",
+        "icon": "default.ico",
+        "action": "unassigned"
+        },
+        {
+        "x": 411,
+        "y": 180,
+        "width": 40,
+        "height": 40,
+        "slot_id": "Button_7",
+        "style_class": "unassigned",
+        "label": "7",
+        "type": "grid",
+        "tooltip": "Unassigned",
+        "icon": "default.ico",
+        "action": "unassigned"
+        },
+        {
+        "x": 460,
+        "y": 180,
+        "width": 40,
+        "height": 40,
+        "slot_id": "Button_8",
+        "style_class": "unassigned",
+        "label": "8",
+        "type": "grid",
+        "tooltip": "Unassigned",
+        "icon": "default.ico",
+        "action": "unassigned"
+        },
+        {
+        "x": 310,
+        "y": 225,
+        "width": 40,
+        "height": 40,
+        "slot_id": "Button_9",
+        "style_class": "unassigned",
+        "label": "9",
+        "type": "grid",
+        "tooltip": "Unassigned",
+        "icon": "default.ico",
+        "action": "unassigned"
+        },
+        {
+        "x": 360,
+        "y": 225,
+        "width": 40,
+        "height": 40,
+        "slot_id": "Button_10",
+        "style_class": "unassigned",
+        "label": "10",
+        "type": "grid",
+        "tooltip": "Unassigned",
+        "icon": "default.ico",
+        "action": "unassigned"
+        },
+        {
+        "x": 411,
+        "y": 225,
+        "width": 40,
+        "height": 40,
+        "slot_id": "Button_11",
+        "style_class": "unassigned",
+        "label": "11",
+        "type": "grid",
+        "tooltip": "Unassigned",
+        "icon": "default.ico",
+        "action": "unassigned"
+        },
+        {
+        "x": 460,
+        "y": 225,
+        "width": 40,
+        "height": 40,
+        "slot_id": "Button_12",
+        "style_class": "unassigned",
+        "label": "12",
+        "type": "grid",
+        "tooltip": "Unassigned",
+        "icon": "default.ico",
+        "action": "unassigned"
+        },
+        {
+        "x": 310,
+        "y": 272,
+        "width": 40,
+        "height": 40,
+        "slot_id": "Button_13",
+        "style_class": "unassigned",
+        "label": "13",
+        "type": "grid",
+        "tooltip": "Unassigned",
+        "icon": "default.ico",
+        "action": "unassigned"
+        },
+        {
+        "x": 360,
+        "y": 272,
+        "width": 40,
+        "height": 40,
+        "slot_id": "Button_14",
+        "style_class": "unassigned",
+        "label": "14",
+        "type": "grid",
+        "tooltip": "Unassigned",
+        "icon": "default.ico",
+        "action": "unassigned"
+        },
+        {
+        "x": 411,
+        "y": 272,
+        "width": 40,
+        "height": 40,
+        "slot_id": "Button_15",
+        "style_class": "unassigned",
+        "label": "15",
+        "type": "grid",
+        "tooltip": "Unassigned",
+        "icon": "default.ico",
+        "action": "unassigned"
+        },
+        {
+        "x": 460,
+        "y": 272,
+        "width": 40,
+        "height": 40,
+        "slot_id": "Button_16",
+        "style_class": "unassigned",
+        "label": "16",
+        "type": "grid",
+        "tooltip": "Unassigned",
+        "icon": "default.ico",
+        "action": "unassigned"
+        },
+        {
+        "x": 311,
+        "y": 98,
+        "width": 39,
+        "height": 22,
+        "label": "Load",
+        "slot_id": "Load_Layout",
+        "icon" : "open.ico",
+        "type": "control",
+        "tooltip": "Load existing layout",
+        "font": {
+            "family": "Inter",
+            "size": 9
+        },
+        "style_class": "primary"
+        },
+        {
+        "x": 360,
+        "y": 98,
+        "width": 39,
+        "height": 22,
+        "label": "Save",
+        "slot_id": "Save_Layout",
+        "type": "control",
+        "icon": "save.ico",
+        "tooltip": "Save current layout",
+        "font": {
+            "family": "Inter",
+            "size": 14
+        },
+        "style_class": "primary"
+        },
+        {
+        "x": 409,
+        "y": 98,
+        "width": 22,
+        "height": 22,
+        "label":"+",
+        "slot_id":"Add_window_assignment",
+        "icon": "add.ico",
+        "type": "control",
+        "tooltip":"Add window assignment to palette",
+        "font": {
+            "family": "Inter",
+            "size": 14
+        },
+        "style_class": "safe"
+        },
+        {
+        "x": 440,
+        "y": 98,
+        "width": 22,
+        "height": 22,
+        "label":"-",
+        "slot_id":"Remove_window_assignment",
+        "icon": "minus.ico",
+        "type": "control",
+        "tooltip":"Remove window assignment from palette",
+        "font": {
+            "family": "Inter",
+            "size": 14
+        },
+        "style_class": "danger"
+        },
+        {
+        "x": 470,
+        "y": 99,
+        "width": 34,
+        "height": 22,
+        "label":"3 x 3",
+        "slot_id":"Toggle_Layout",
+        "type": "control",
+        "tooltip":"Toggle Layout",
+        "font": {
+            "family": "Inter",
+            "size": 8
+        },
+        "style_class": "primary"
+        },
+        {
+        "x": 314,
+        "y": 328,
+        "width": 140,
+        "height": 20,
+        "label": "(no file selected)",
+        "slot_id": "Current_Layout",
+        "type": "control",
+        "tooltip": "Current Layout file",
+        "font": {
+            "family": "Inter",
+            "size": 10
+        },
+        "style_class" : "info"
+        },
+        {
+        "x": 468,
+        "y": 328,
+        "width": 28,
+        "height": 20,
+        "label": "L / D",
+        "slot_id": "Theme_Toggle",
+        "type": "control",
+        "tooltip": "Day / Night Toggle",
+        "font": {
+            "family": "Inter",
+            "size": 8
+        },
+        "style_class" : "toggle"
+    }
+    ]
+}
+}
